@@ -6,8 +6,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modelCards = document.querySelectorAll('.model-card');
     const nanobananaControls = document.getElementById('nanobanana-controls');
     const modelscopeControls = document.getElementById('modelscope-controls');
+    const zimageControls = document.getElementById('zimage-controls');
     const apiKeyOpenRouterInput = document.getElementById('api-key-input-openrouter');
     const apiKeyModelScopeInput = document.getElementById('api-key-input-modelscope');
+    const apiKeyZImageInput = document.getElementById('api-key-input-zimage');
     const generateBtns = document.querySelectorAll('.generate-btn');
 
     const countButtons = document.querySelectorAll('.count-btn');
@@ -17,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nanobananaPromptRemark = document.getElementById('nanobanana-prompt-remark');
     const modelscopePromptRemark = document.getElementById('modelscope-prompt-remark');
     const modelscopeNegativePromptRemark = document.getElementById('modelscope-negative-prompt-remark');
+    const zimagePromptRemark = document.getElementById('zimage-prompt-remark');
 
     const fullscreenModal = document.getElementById('fullscreen-modal');
     const modalImage = document.getElementById('modal-image');
@@ -33,6 +36,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const stepsInput = document.getElementById('steps-input');
     const guidanceInput = document.getElementById('guidance-input');
     const seedInput = document.getElementById('seed-input');
+    
+    const promptZImageInput = document.getElementById('prompt-input-zimage');
+    const zimageStepsInput = document.getElementById('zimage-steps-input');
+    const zimageSizeSelect = document.getElementById('zimage-size-select');
 
     // --- 状态变量 ---
     let selectedFiles = [];
@@ -41,23 +48,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modelStates = {};
     modelCards.forEach(card => {
         const modelId = card.dataset.model;
-        modelStates[modelId] = {
-            inputs: {
-                prompt: '',
-                negative_prompt: '',
-                size: '1328x1328',
-                steps: 30,
-                guidance: 3.5,
-                seed: -1,
-                count: 1,
-                files: []
-            },
-            task: {
-                isRunning: false,
-                statusText: ''
-            },
-            results: []
-        };
+        if (modelId === 'z-image-turbo') {
+            modelStates[modelId] = {
+                inputs: {
+                    prompt: '',
+                    size: '2048x2048',
+                    steps: 9
+                },
+                task: {
+                    isRunning: false,
+                    statusText: ''
+                },
+                results: []
+            };
+        } else {
+            modelStates[modelId] = {
+                inputs: {
+                    prompt: '',
+                    negative_prompt: '',
+                    size: '1328x1328',
+                    steps: 30,
+                    guidance: 3.5,
+                    seed: -1,
+                    count: 1,
+                    files: []
+                },
+                task: {
+                    isRunning: false,
+                    statusText: ''
+                },
+                results: []
+            };
+        }
     });
 
     // --- 初始化函数 ---
@@ -76,6 +98,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetch('/api/modelscope-key-status').then(res => res.json()).then(data => {
             if (data.isSet) { apiKeyModelScopeInput.parentElement.style.display = 'none'; }
         }).catch(error => console.error("无法检查 ModelScope API key 状态:", error));
+
+        fetch('/api/zimage-key-status').then(res => res.json()).then(data => {
+            if (data.isSet) { apiKeyZImageInput.parentElement.style.display = 'none'; }
+        }).catch(error => console.error("无法检查 Z-Image API key 状态:", error));
     }
     
     function saveStateForModel(modelId) {
@@ -85,6 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (modelId === 'nanobanana') {
             state.inputs.prompt = promptNanoBananaInput.value;
             state.inputs.files = selectedFiles;
+        } else if (modelId === 'z-image-turbo') {
+            state.inputs.prompt = promptZImageInput.value;
+            state.inputs.size = zimageSizeSelect.value;
+            state.inputs.steps = parseInt(zimageStepsInput.value, 10);
         } else {
             state.inputs.prompt = promptPositiveInput.value;
             state.inputs.negative_prompt = promptNegativeInput.value;
@@ -107,6 +137,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedFiles = state.inputs.files;
             thumbnailsContainer.innerHTML = '';
             selectedFiles.forEach(createThumbnail);
+        } else if (currentModel === 'z-image-turbo') {
+            promptZImageInput.value = state.inputs.prompt;
+            zimageSizeSelect.value = state.inputs.size;
+            zimageStepsInput.value = state.inputs.steps;
         } else {
             promptPositiveInput.value = state.inputs.prompt;
             promptNegativeInput.value = state.inputs.negative_prompt;
@@ -162,15 +196,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function updateActiveModelUI() {
-        if (currentModel === 'nanobanana') { nanobananaControls.classList.remove('hidden'); modelscopeControls.classList.add('hidden'); } 
-        else { nanobananaControls.classList.add('hidden'); modelscopeControls.classList.remove('hidden'); }
-        nanobananaPromptRemark.textContent = ''; modelscopePromptRemark.textContent = ''; modelscopeNegativePromptRemark.textContent = '';
-        if (currentModel === 'nanobanana') { nanobananaPromptRemark.textContent = '(支持中文提示词)'; } 
-        else { let remarkText = ''; if (currentModel === 'Qwen/Qwen-Image') { remarkText = '(支持中文提示词)'; } else if (currentModel.includes('FLUX') || currentModel.includes('Kontext') || currentModel.includes('Krea')) { remarkText = '(请使用英文提示词)'; } modelscopePromptRemark.textContent = remarkText; modelscopeNegativePromptRemark.textContent = remarkText; }
+        if (currentModel === 'nanobanana') { 
+            nanobananaControls.classList.remove('hidden'); 
+            modelscopeControls.classList.add('hidden'); 
+            zimageControls.classList.add('hidden');
+        } 
+        else if (currentModel === 'z-image-turbo') {
+            nanobananaControls.classList.add('hidden'); 
+            modelscopeControls.classList.add('hidden'); 
+            zimageControls.classList.remove('hidden');
+        }
+        else { 
+            nanobananaControls.classList.add('hidden'); 
+            modelscopeControls.classList.remove('hidden'); 
+            zimageControls.classList.add('hidden');
+        }
+        nanobananaPromptRemark.textContent = ''; 
+        modelscopePromptRemark.textContent = ''; 
+        modelscopeNegativePromptRemark.textContent = '';
+        zimagePromptRemark.textContent = '';
+        
+        if (currentModel === 'nanobanana') { 
+            nanobananaPromptRemark.textContent = '(支持中文提示词)'; 
+        } 
+        else if (currentModel === 'z-image-turbo') {
+            zimagePromptRemark.textContent = '(请使用英文提示词)';
+        }
+        else { 
+            let remarkText = ''; 
+            if (currentModel === 'Qwen/Qwen-Image') { 
+                remarkText = '(支持中文提示词)'; 
+            } else if (currentModel.includes('FLUX') || currentModel.includes('Kontext') || currentModel.includes('Krea')) { 
+                remarkText = '(请使用英文提示词)'; 
+            } 
+            modelscopePromptRemark.textContent = remarkText; 
+            modelscopeNegativePromptRemark.textContent = remarkText; 
+        }
     }
     
     function setupInputValidation() {
-        const inputsToValidate = [stepsInput, guidanceInput, seedInput];
+        const inputsToValidate = [stepsInput, guidanceInput, seedInput, zimageStepsInput];
         inputsToValidate.forEach(input => {
             input.addEventListener('input', () => validateInput(input));
             if (input.id === 'seed-input') { input.addEventListener('change', () => validateInput(input)); }
@@ -257,6 +322,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             let imageUrls;
             if (modelId === 'nanobanana') {
                 imageUrls = await handleNanoBananaGeneration(statusUpdate);
+            } else if (modelId === 'z-image-turbo') {
+                imageUrls = await handleZImageGeneration(statusUpdate);
             } else {
                 imageUrls = await handleModelScopeGeneration(statusUpdate);
             }
@@ -295,6 +362,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusUpdate('正在生成图片...');
         const base64Images = await Promise.all(modelStates.nanobanana.inputs.files.map(fileToBase64));
         const requestBody = { model: 'nanobanana', prompt: modelStates.nanobanana.inputs.prompt, images: base64Images, apikey: apiKeyOpenRouterInput.value };
+        const response = await fetch('/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
+        const data = await response.json();
+        if (!response.ok || data.error) { throw new Error(data.error || `服务器错误: ${response.status}`); }
+        return [data.imageUrl];
+    }
+
+    async function handleZImageGeneration(statusUpdate) {
+        const inputs = modelStates[currentModel].inputs;
+        const isStepsValid = validateInput(zimageStepsInput);
+        if (!isStepsValid) { throw new Error('请修正参数错误后再生成'); }
+        if (apiKeyZImageInput.parentElement.style.display !== 'none' && !apiKeyZImageInput.value.trim()) { throw new Error('请输入 Z-Image API Key'); }
+        if (!inputs.prompt) { throw new Error('请输入提示词'); }
+        
+        statusUpdate('正在生成图片...');
+        const requestBody = { 
+            model: 'z-image-turbo', 
+            apikey: apiKeyZImageInput.value, 
+            prompt: inputs.prompt, 
+            size: inputs.size,
+            steps: inputs.steps
+        };
         const response = await fetch('/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
         const data = await response.json();
         if (!response.ok || data.error) { throw new Error(data.error || `服务器错误: ${response.status}`); }

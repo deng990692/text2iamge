@@ -94,7 +94,53 @@ async function callModelScope(model: string, apikey: string, parameters: any, ti
 }
 
 // =======================================================
-// 主服务逻辑
+// 模块 3: Z-Image API 调用逻辑
+// =======================================================
+async function callZImage(prompt: string, model: string, size: string, num_inference_steps: number, apiKey: string): Promise<{ imageUrl: string }> {
+    if (!apiKey) { throw new Error("callZImage received an empty apiKey."); }
+    if (!prompt) { throw new Error("Prompt is required for Z-Image."); }
+    
+    const [width, height] = size.split('x').map(Number);
+    
+    const payload = {
+        prompt,
+        model,
+        size,
+        num_inference_steps
+    };
+    
+    console.log(`[Z-Image] Submitting request with payload:`, JSON.stringify(payload, null, 2));
+    
+    const response = await fetch("https://api.moark.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Z-Image API error: ${response.status} ${response.statusText} - ${errorBody}`);
+    }
+    
+    const data = await response.json();
+    console.log("[Z-Image] Response:", JSON.stringify(data, null, 2));
+    
+    // Z-Image 返回 data.data[0].url 或 data.data[0].b64_json
+    if (data.data && data.data[0]) {
+        if (data.data[0].url) {
+            return { imageUrl: data.data[0].url };
+        } else if (data.data[0].b64_json) {
+            // 如果是 base64，返回 data URL
+            return { imageUrl: `data:image/jpeg;base64,${data.data[0].b64_json}` };
+        }
+    }
+    
+    throw new Error("Z-Image API returned no valid image data.");
+}
+
 // =======================================================
 serve(async (req) => {
     const pathname = new URL(req.url).pathname;
@@ -124,11 +170,18 @@ serve(async (req) => {
         });
     }
 
+    if (pathname === "/api/zimage-key-status") {
+        const isSet = !!Deno.env.get("ZIMAGE_API_KEY");
+        return new Response(JSON.stringify({ isSet }), {
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        });
+    }
+
     if (pathname === "/generate") {
         try {
             // [修改] 从请求体中解构出 timeout
             const requestData = await req.json();
-            const { model, apikey, prompt, images, parameters, timeout } = requestData;
+            const { model, apikey, prompt, images, parameters, timeout, size, steps } = requestData;
 
             if (model === 'nanobanana') {
                 const openrouterApiKey = apikey || Deno.env.get("OPENROUTER_API_KEY");
@@ -146,6 +199,14 @@ serve(async (req) => {
                 } else {
                     return createJsonErrorResponse(`Model returned text instead of an image: "${result.content}"`, 400);
                 }
+            } else if (model === 'z-image-turbo') {
+                const zimageApiKey = apikey || Deno.env.get("ZIMAGE_API_KEY");
+                if (!zimageApiKey) { return createJsonErrorResponse("Z-Image API key is not set.", 401); }
+                if (!prompt) { return createJsonErrorResponse("Prompt is required for Z-Image.", 400); }
+                const result = await callZImage(prompt, model, size || "1024x1024", steps || 9, zimageApiKey);
+                return new Response(JSON.stringify(result), {
+                    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+                });
             } else {
                 const modelscopeApiKey = apikey || Deno.env.get("MODELSCOPE_API_KEY");
                 if (!modelscopeApiKey) { return createJsonErrorResponse("ModelScope API key is not set.", 401); }

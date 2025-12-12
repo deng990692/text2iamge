@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isStepsValid = validateInput(zimageStepsInput);
         if (!isStepsValid) { throw new Error('请修正参数错误后再生成'); }
         if (apiKeyZImageInput.parentElement.style.display !== 'none' && !apiKeyZImageInput.value.trim()) { throw new Error('请输入 Z-Image API Key'); }
-        if (!inputs.prompt) { throw new Error('请输入提示词'); }
+        if (!inputs.prompt || !inputs.prompt.trim()) { throw new Error('请输入提示词'); }
         
         statusUpdate('正在生成图片...');
         const requestBody = { 

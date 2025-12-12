@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             modelStates[modelId] = {
                 inputs: {
                     prompt: '',
-                    size: '2048x2048',
+                    size: '1024x1024',
                     steps: 9
                 },
                 task: {
@@ -135,7 +135,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             selectedFiles.forEach(createThumbnail);
         } else if (currentModel === 'z-image-turbo') {
             promptZImageInput.value = state.inputs.prompt;
-            zimageSizeSelect.value = state.inputs.size;
+            // 确保 size 是 Z-Image 支持的格式，否则使用默认值
+            const validZImageSizes = ['1024x1024', '1024x768', '768x1024', '1024x576', '576x1024', '1024x640', '640x1024'];
+            const sizeValue = state.inputs.size && validZImageSizes.includes(state.inputs.size) ? state.inputs.size : '1024x1024';
+            zimageSizeSelect.value = sizeValue;
+            state.inputs.size = sizeValue; // 同时更新状态
             zimageStepsInput.value = state.inputs.steps;
         } else {
             promptPositiveInput.value = state.inputs.prompt;

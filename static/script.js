@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     prompt: '',
                     negative_prompt: '',
                     size: '1328x1328',
-                    steps: 30,
+                    steps: 9,
                     guidance: 3.5,
                     seed: -1,
                     count: 1,

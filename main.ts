@@ -195,8 +195,13 @@ serve(async (req) => {
             } else if (model === 'z-image-turbo') {
                 const zimageApiKey = apikey || Deno.env.get("ZIMAGE_API_KEY");
                 if (!zimageApiKey) { return createJsonErrorResponse("Z-Image API key is not set.", 401); }
-                if (!prompt) { return createJsonErrorResponse("Prompt is required for Z-Image.", 400); }
-                const result = await callZImage(prompt, model, size || "1024x1024", steps || 9, zimageApiKey);
+                const promptText = prompt || parameters?.prompt;
+                if (!promptText) { return createJsonErrorResponse("Prompt is required for Z-Image.", 400); }
+                
+                const zImageSize = size || parameters?.size || "1024x1024";
+                const zImageSteps = steps || parameters?.steps || 9;
+                
+                const result = await callZImage(promptText, model, zImageSize, zImageSteps, zimageApiKey);
                 return new Response(JSON.stringify(result), {
                     headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
                 });

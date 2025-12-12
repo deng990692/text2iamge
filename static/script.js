@@ -98,10 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetch('/api/modelscope-key-status').then(res => res.json()).then(data => {
             if (data.isSet) { apiKeyModelScopeInput.parentElement.style.display = 'none'; }
         }).catch(error => console.error("无法检查 ModelScope API key 状态:", error));
-
-        fetch('/api/zimage-key-status').then(res => res.json()).then(data => {
-            if (data.isSet) { apiKeyZImageInput.parentElement.style.display = 'none'; }
-        }).catch(error => console.error("无法检查 Z-Image API key 状态:", error));
     }
     
     function saveStateForModel(modelId) {

@@ -170,13 +170,6 @@ serve(async (req) => {
         });
     }
 
-    if (pathname === "/api/zimage-key-status") {
-        const isSet = !!Deno.env.get("ZIMAGE_API_KEY");
-        return new Response(JSON.stringify({ isSet }), {
-            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        });
-    }
-
     if (pathname === "/generate") {
         try {
             // [修改] 从请求体中解构出 timeout
